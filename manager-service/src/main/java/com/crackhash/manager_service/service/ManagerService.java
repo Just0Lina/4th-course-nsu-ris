@@ -64,15 +64,20 @@ public class ManagerService {
     }
 
     public void processWorkerResult(WorkerResult result) {
-        HashStatus status = requests.get(result.getRequestId());
-        if (status != null) {
-            status.getData().addAll(result.getData());
-            if (!status.getData().isEmpty()) {
-                status.setStatus(Status.READY);
-                logger.info("Received results for requestId {}, marking status as READY", result.getRequestId());
+        requests.computeIfPresent(result.getRequestId(), (requestId, status) -> {
+            synchronized (status) {
+                status.getData().addAll(result.getData());
+                if (!status.getData().isEmpty()) {
+                    status.setStatus(Status.READY);
+                    logger.info("Received results for requestId {}, marking status as READY", requestId);
+                }
             }
-        } else {
+            return status;
+        });
+
+        if (!requests.containsKey(result.getRequestId())) {
             logger.warn("Received result for unknown requestId: {}", result.getRequestId());
         }
     }
+
 }
