@@ -23,8 +23,7 @@ import java.util.List;
 public class WorkerService {
     private static final Logger logger = LoggerFactory.getLogger(WorkerService.class);
 
-    @Autowired
-    private RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final ManagerConfig managerConfig;
 
     public void crackHash(WorkerTask task) {
