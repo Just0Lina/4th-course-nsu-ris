@@ -8,27 +8,137 @@ services:
     networks:
       - app-network
     depends_on:
-      - worker
+      - worker1
+      - worker2
+      - mongo1
+      - mongo2
+      - mongo3
+      - rabbitmq
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
     ports:
       - "8080:8080"
 
-  worker:
+  worker1:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
     networks:
       - app-network
-
-  nginx:
-    image: nginx:latest
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      - worker
+      - rabbitmq
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 10s
+
+  worker2:
+    build:
+      context: .
+      dockerfile: worker-service/Dockerfile
     networks:
       - app-network
+    depends_on:
+      - rabbitmq
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 10s
+
+  mongo1:
+    hostname: mongo1
+    image: mongo
+    networks:
+      - app-network
+    expose:
+      - 27017
+    ports:
+      - 30001:27017
+    restart: always
+    command: mongod --replSet my-mongo-set
+  mongo2:
+    hostname: mongo2
+    image: mongo
+    networks:
+      - app-network
+    expose:
+      - 27017
+    ports:
+      - 30002:27017
+    restart: always
+    command: mongod --replSet my-mongo-set
+  mongo3:
+    hostname: mongo3
+    image: mongo
+    networks:
+      - app-network
+    expose:
+      - 27017
+    ports:
+      - 30003:27017
+    restart: always
+    command: mongod --replSet my-mongo-set
+
+
+  mongoinit:
+    image: mongo
+    restart: "no"
+    networks:
+      - app-network
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    command: >
+      mongosh --host mongo1:27017 --eval '
+      db = (new Mongo("mongo1:27017")).getDB("crackhash-db");
+      config = {
+        "_id" : "my-mongo-set",
+        "members" : [
+          { "_id" : 0, "host" : "mongo1:27017" },
+          { "_id" : 1, "host" : "mongo2:27017" },
+          { "_id" : 2, "host" : "mongo3:27017" }
+        ]
+      };
+      rs.initiate(config);
+      '
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    networks:
+      - app-network
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    ports:
+      - "15673:15672"
+      - "5673:5672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
 
 networks:
   app-network:

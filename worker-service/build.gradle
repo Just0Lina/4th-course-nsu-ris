@@ -34,7 +34,8 @@ dependencies {
 	implementation 'com.googlecode.combinatoricslib:combinatoricslib:2.3'
 	implementation 'org.apache.httpcomponents.client5:httpclient5:5.4.1'
 	implementation 'org.apache.httpcomponents:httpclient:4.5'
-
+	implementation 'org.springframework.boot:spring-boot-starter-amqp:3.4.2'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 tasks.named('test') {
